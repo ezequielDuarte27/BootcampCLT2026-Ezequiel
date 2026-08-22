@@ -1,0 +1,151 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Dd]ebugPublic/
+[Rr]eleases/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+x64/
+x86/
+[Aa]rtifacts/
+.artifacts/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+publish/
+
+# Visual Studio
+.vs/
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.VC.opendb
+*.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*.psess
+*.vsp
+*.vspx
+*.sap
+*.e2e
+**/bin/
+**/obj/
+Generated\ Files/
+
+# Visual Studio Code
+.vscode/
+.history/
+*.vsix
+
+# JetBrains Rider / ReSharper
+.idea/
+*.sln.iml
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# .NET and MSBuild generated files
+project.lock.json
+project.fragment.lock.json
+*.dll
+*.exe
+*.pdb
+*.cache
+*.obj
+*.iobj
+*.pch
+*.ipdb
+*.pgc
+*.pgd
+*.rsp
+!Directory.Build.rsp
+*.tlog
+*.binlog
+MSBuild_Logs/
+*_wpftmp.csproj
+*.tmp_proj
+
+# Test results and code coverage
+[Tt]est[Rr]esult*/
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+coverage*.info
+coverage-report/
+BenchmarkDotNet.Artifacts/
+*.received.*
+
+# NuGet packages
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+
+# Local tools and caches
+.store/
+.dotnet/
+.ionide/
+**/.paket/paket.exe
+paket-files/
+**/.fake/
+
+# Publish profiles and local deployment settings
+*.pubxml
+*.publishproj
+*.azurePubxml
+*.publishsettings
+PublishScripts/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.Local.json
+
+# Local databases
+*.mdf
+*.ldf
+*.ndf
+*.db
+*.db-shm
+*.db-wal
+
+# Temporary and backup files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*.orig
+*.log
+~$*
+*~
+
+# Operating system files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Node dependencies, if the solution includes frontend projects
+node_modules/
+
+# Local history and generated tooling files
+.localhistory/
+.vshistory/
+MigrationBackup/
+ServiceFabricBackup/
+

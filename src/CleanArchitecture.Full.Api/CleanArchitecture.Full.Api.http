@@ -1,0 +1,57 @@
+@CleanArchitecture.Full.Api_HostAddress = http://localhost:5264
+
+GET {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts
+Accept: application/json
+
+###
+
+POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts
+Content-Type: application/json
+
+{
+  "accountNumber": "ACC-0004",
+  "holderName": "Margaret Hamilton",
+  "balance": 5000,
+  "status": "Active"
+}
+
+###
+
+GET {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000
+Accept: application/json
+
+###
+
+PUT {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+
+{
+  "accountNumber": "ACC-0004",
+  "holderName": "Margaret Hamilton",
+  "balance": 5500,
+  "status": "Active"
+}
+
+###
+
+POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000/deposit
+Content-Type: application/json
+
+{
+  "amount": 250
+}
+
+###
+
+POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000/withdraw
+Content-Type: application/json
+
+{
+  "amount": 100
+}
+
+###
+
+DELETE {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000
+
+###

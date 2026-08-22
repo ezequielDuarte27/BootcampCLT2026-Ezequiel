@@ -1,3 +1,5 @@
+using CleanArchitecture.Full.Application.Common;
+using CleanArchitecture.Full.Application.Common.Exceptions;
 using CleanArchitecture.Full.Domain;
 using FluentValidation;
 using FluentValidation.Results;
@@ -6,15 +8,24 @@ using Microsoft.Extensions.Logging;
 
 namespace CleanArchitecture.Full.Application.Accounts.Commands.DepositToAccount;
 
-public class DepositToAccountCommandHandler(IAccountRepository repository, ILogger<DepositToAccountCommandHandler> logger)
+public class DepositToAccountCommandHandler(
+    IAccountRepository accountRepository,
+    ITransactionRepository transactionRepository,
+    ICurrentUser currentUser,
+    ILogger<DepositToAccountCommandHandler> logger)
     : IRequestHandler<DepositToAccountCommand, AccountDto?>
 {
     public async Task<AccountDto?> Handle(DepositToAccountCommand request, CancellationToken cancellationToken)
     {
-        var account = await repository.GetByIdAsync(request.Id, cancellationToken);
+        var account = await accountRepository.GetByIdAsync(request.Id, cancellationToken);
         if (account is null)
         {
             return null;
+        }
+
+        if (!currentUser.IsAdmin && account.CustomerId != currentUser.CustomerId)
+        {
+            throw new ForbiddenAccessException();
         }
 
         if (account.Status != "Active")
@@ -25,8 +36,20 @@ public class DepositToAccountCommandHandler(IAccountRepository repository, ILogg
         }
 
         account.Balance += request.Amount;
-        repository.Update(account);
-        await repository.SaveChangesAsync(cancellationToken);
+        accountRepository.Update(account);
+
+        await transactionRepository.AddAsync(new Transaction
+        {
+            Id = Guid.NewGuid(),
+            AccountId = account.Id,
+            Type = TransactionTypes.Deposit,
+            Amount = request.Amount,
+            Currency = account.Currency,
+            BalanceAfter = account.Balance,
+            CreatedAt = DateTime.UtcNow
+        }, cancellationToken);
+
+        await accountRepository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
             "Depósito de {Amount} realizado en la cuenta {AccountId} ({AccountNumber}). Nuevo balance: {Balance}",

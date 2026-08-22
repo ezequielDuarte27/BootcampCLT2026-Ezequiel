@@ -1,4 +1,6 @@
 using CleanArchitecture.Full.Domain;
+using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -13,6 +15,13 @@ public class ActivateAccountCommandHandler(IAccountRepository repository, ILogge
         if (account is null)
         {
             return null;
+        }
+
+        if (account.Status == "Closed")
+        {
+            throw new ValidationException([
+                new ValidationFailure(nameof(Account.Status), "No se puede activar una cuenta cerrada.")
+            ]);
         }
 
         account.Status = "Active";

@@ -1,40 +1,77 @@
 @CleanArchitecture.Full.Api_HostAddress = http://localhost:5264
 
-GET {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts
-Accept: application/json
-
-###
-
-POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts
+### 1. Login como admin (copiar el "token" de la respuesta a @adminToken)
+POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/auth/login
 Content-Type: application/json
 
 {
-  "accountNumber": "ACC-0004",
-  "holderName": "Margaret Hamilton",
-  "balance": 5000,
-  "status": "Active"
+  "username": "admin",
+  "password": "Admin123!"
+}
+
+###
+@adminToken = PEGAR_TOKEN_AQUI
+
+### 2. Crear un cliente
+POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/customers
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "documentType": "DNI",
+  "documentNumber": "12345678",
+  "fullName": "Margaret Hamilton"
 }
 
 ###
 
-GET {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000
+### 3. Crear una cuenta para ese cliente (el accountNumber se asigna solo)
+POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "customerId": "00000000-0000-0000-0000-000000000000",
+  "balance": 5000,
+  "currency": "ARS"
+}
+
+###
+
+GET {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts
+Authorization: Bearer {{adminToken}}
 Accept: application/json
 
 ###
 
+GET {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+###
+
+GET {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000/balance
+Authorization: Bearer {{adminToken}}
+
+###
+
+GET {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000/transactions
+Authorization: Bearer {{adminToken}}
+
+###
+
 PUT {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
-  "accountNumber": "ACC-0004",
-  "holderName": "Margaret Hamilton",
-  "balance": 5500,
-  "status": "Active"
+  "currency": "USD"
 }
 
 ###
 
 POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000/deposit
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -44,6 +81,7 @@ Content-Type: application/json
 ###
 
 POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000/withdraw
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -52,24 +90,43 @@ Content-Type: application/json
 
 ###
 
-POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000/transfer
+POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/transfers
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
-  "toAccountId": "11111111-1111-1111-1111-111111111111",
-  "amount": 100
+  "sender": { "accountNumber": "ACC-000001", "documentNumber": "27134863" },
+  "beneficiary": { "accountNumber": "ACC-000002", "documentType": "DNI", "documentNumber": "40123456" },
+  "amount": 100,
+  "currency": "ARS"
 }
-
-###
-
-POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000/activate
 
 ###
 
 POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000/deactivate
+Authorization: Bearer {{adminToken}}
+
+###
+
+POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000/activate
+Authorization: Bearer {{adminToken}}
 
 ###
 
 DELETE {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/accounts/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{adminToken}}
+
+###
+
+### Autoregistro de un cliente ya existente (login como Cliente)
+POST {{CleanArchitecture.Full.Api_HostAddress}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "username": "margaret",
+  "password": "Password123",
+  "customerId": "00000000-0000-0000-0000-000000000000",
+  "documentNumber": "12345678"
+}
 
 ###

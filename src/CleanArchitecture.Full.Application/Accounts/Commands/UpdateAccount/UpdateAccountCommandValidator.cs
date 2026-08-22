@@ -4,13 +4,12 @@ namespace CleanArchitecture.Full.Application.Accounts.Commands.UpdateAccount;
 
 public class UpdateAccountCommandValidator : AbstractValidator<UpdateAccountCommand>
 {
+    private static readonly string[] AllowedCurrencies = ["ARS", "USD", "EUR"];
+
     public UpdateAccountCommandValidator()
     {
         RuleFor(x => x.Id).NotEmpty();
-        RuleFor(x => x.AccountNumber).NotEmpty().MaximumLength(20);
-        RuleFor(x => x.HolderName).NotEmpty().MaximumLength(150);
-        RuleFor(x => x.Balance).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.Status).NotEmpty().Must(s => s is "Active" or "Inactive")
-            .WithMessage("Status debe ser 'Active' or 'Inactive'.");
+        RuleFor(x => x.Currency).NotEmpty().Must(c => AllowedCurrencies.Contains(c))
+            .WithMessage($"Currency debe ser una de: {string.Join(", ", AllowedCurrencies)}.");
     }
 }

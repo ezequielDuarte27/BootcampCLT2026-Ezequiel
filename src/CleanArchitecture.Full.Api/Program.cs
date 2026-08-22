@@ -1,11 +1,17 @@
-﻿using CleanArchitecture.Full.Api.Endpoints;
+using System.Text;
+using CleanArchitecture.Full.Api.Endpoints;
 using CleanArchitecture.Full.Api.Middleware;
+using CleanArchitecture.Full.Api.Security;
 using CleanArchitecture.Full.Application;
+using CleanArchitecture.Full.Application.Common;
+using CleanArchitecture.Full.Domain;
 using CleanArchitecture.Full.Infrastructure;
 using CleanArchitecture.Full.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
@@ -44,8 +50,37 @@ try
             failureStatus: HealthStatus.Unhealthy,
             tags: ["ready"]);
 
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+    builder.Services.AddSingleton<IAdminCredentials, AdminCredentials>();
+    builder.Services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+
+    var jwtSigningKey = builder.Configuration["Jwt:SigningKey"]
+        ?? throw new InvalidOperationException("Jwt:SigningKey no está configurado.");
+
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                ValidateAudience = true,
+                ValidAudience = builder.Configuration["Jwt:Audience"],
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey)),
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.FromSeconds(30)
+            };
+        });
+
+    builder.Services.AddAuthorization(options =>
+    {
+        options.AddPolicy("AdminOnly", policy => policy.RequireRole(UserRoles.Admin));
+    });
+
     var app = builder.Build();
-    
+
     app.UseSerilogRequestLogging(options =>
     {
         // Las probes son frecuentes: se conservan a nivel Debug sin bombardear a Seq.
@@ -85,10 +120,14 @@ try
     }
 
     app.UseHttpsRedirection();
+    app.UseAuthentication();
     app.UseAuthorization();
 
     app.MapControllers();
+    app.MapAuthEndpoints();
+    app.MapCustomerEndpoints();
     app.MapAccountEndpoints();
+    app.MapTransferEndpoints();
     app.MapHealthChecks("/health/live", new HealthCheckOptions
     {
         Predicate = _ => false
@@ -109,4 +148,3 @@ finally
 {
     Log.CloseAndFlush();
 }
-

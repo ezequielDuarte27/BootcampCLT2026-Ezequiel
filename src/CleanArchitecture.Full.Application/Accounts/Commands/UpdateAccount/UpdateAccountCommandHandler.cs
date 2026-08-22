@@ -7,8 +7,6 @@ namespace CleanArchitecture.Full.Application.Accounts.Commands.UpdateAccount;
 public class UpdateAccountCommandHandler(IAccountRepository repository, ILogger<UpdateAccountCommandHandler> logger)
     : IRequestHandler<UpdateAccountCommand, AccountDto?>
 {
-    private const decimal MinimumRecommendedBalance = 100m;
-
     public async Task<AccountDto?> Handle(UpdateAccountCommand request, CancellationToken cancellationToken)
     {
         var account = await repository.GetByIdAsync(request.Id, cancellationToken);
@@ -17,28 +15,15 @@ public class UpdateAccountCommandHandler(IAccountRepository repository, ILogger<
             return null;
         }
 
-        account.AccountNumber = request.AccountNumber;
-        account.HolderName = request.HolderName;
-        account.Balance = request.Balance;
-        account.Status = request.Status;
-
+        account.Currency = request.Currency;
         repository.Update(account);
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
-            "El Account {AccountId} ({AccountNumber}) actualizado",
+            "Cuenta {AccountId} ({AccountNumber}) actualizada: moneda {Currency}",
             account.Id,
-            account.AccountNumber);
-
-        if (account.Balance < MinimumRecommendedBalance)
-        {
-            // Regla de negocio "blanda": no bloquea la actualización, solo advierte.
-            logger.LogWarning(
-                "Account {AccountNumber} updated with balance {Balance} below the recommended minimum of {MinimumBalance}",
-                account.AccountNumber,
-                account.Balance,
-                MinimumRecommendedBalance);
-        }
+            account.AccountNumber,
+            account.Currency);
 
         return account.ToDto();
     }

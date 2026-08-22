@@ -1,3 +1,5 @@
+using CleanArchitecture.Full.Application.Common;
+using CleanArchitecture.Full.Application.Common.Exceptions;
 using CleanArchitecture.Full.Domain;
 using FluentValidation;
 using FluentValidation.Results;
@@ -6,15 +8,24 @@ using Microsoft.Extensions.Logging;
 
 namespace CleanArchitecture.Full.Application.Accounts.Commands.WithdrawFromAccount;
 
-public class WithdrawFromAccountCommandHandler(IAccountRepository repository, ILogger<WithdrawFromAccountCommandHandler> logger)
+public class WithdrawFromAccountCommandHandler(
+    IAccountRepository accountRepository,
+    ITransactionRepository transactionRepository,
+    ICurrentUser currentUser,
+    ILogger<WithdrawFromAccountCommandHandler> logger)
     : IRequestHandler<WithdrawFromAccountCommand, AccountDto?>
 {
     public async Task<AccountDto?> Handle(WithdrawFromAccountCommand request, CancellationToken cancellationToken)
     {
-        var account = await repository.GetByIdAsync(request.Id, cancellationToken);
+        var account = await accountRepository.GetByIdAsync(request.Id, cancellationToken);
         if (account is null)
         {
             return null;
+        }
+
+        if (!currentUser.IsAdmin && account.CustomerId != currentUser.CustomerId)
+        {
+            throw new ForbiddenAccessException();
         }
 
         if (account.Status != "Active")
@@ -32,8 +43,20 @@ public class WithdrawFromAccountCommandHandler(IAccountRepository repository, IL
         }
 
         account.Balance -= request.Amount;
-        repository.Update(account);
-        await repository.SaveChangesAsync(cancellationToken);
+        accountRepository.Update(account);
+
+        await transactionRepository.AddAsync(new Transaction
+        {
+            Id = Guid.NewGuid(),
+            AccountId = account.Id,
+            Type = TransactionTypes.Withdrawal,
+            Amount = request.Amount,
+            Currency = account.Currency,
+            BalanceAfter = account.Balance,
+            CreatedAt = DateTime.UtcNow
+        }, cancellationToken);
+
+        await accountRepository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
             "Retiro de {Amount} realizado en la cuenta {AccountId} ({AccountNumber}). Nuevo balance: {Balance}",

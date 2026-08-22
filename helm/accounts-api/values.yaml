@@ -25,6 +25,17 @@ postgres:
   username: postgres
   password: postgres
 
+# Issuer/Audience no son sensibles -> ConfigMap; la clave de firma y el admin -> Secret
+jwt:
+  issuer: CleanArchitecture.Full.Api
+  audience: CleanArchitecture.Full.Clients
+  signingKey: dev-only-signing-key-change-me-in-production-1234567890
+  expirationMinutes: 60
+
+auth:
+  adminUsername: admin
+  adminPassword: Admin123!
+
 service:
   type: NodePort
   port: 8080

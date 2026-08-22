@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using CleanArchitecture.Full.Application.Common.Exceptions;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -75,6 +76,22 @@ public static class ValidationExceptionMiddlewareExtensions
                     title = "Conflict",
                     status = StatusCodes.Status409Conflict,
                     detail = "Ya existe un registro con ese valor único (por ejemplo, el número de cuenta ya está en uso)."
+                });
+            }
+            catch (ForbiddenAccessException ex)
+            {
+                logger.LogWarning(
+                    "Acceso denegado en {Method} {Path}: {Message}",
+                    context.Request.Method,
+                    context.Request.Path,
+                    ex.Message);
+
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    title = "Forbidden",
+                    status = StatusCodes.Status403Forbidden,
+                    detail = ex.Message
                 });
             }
             catch (Exception ex)

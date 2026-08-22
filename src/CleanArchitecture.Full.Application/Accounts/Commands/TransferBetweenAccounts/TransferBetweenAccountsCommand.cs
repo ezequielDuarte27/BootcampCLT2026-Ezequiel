@@ -2,4 +2,12 @@ using MediatR;
 
 namespace CleanArchitecture.Full.Application.Accounts.Commands.TransferBetweenAccounts;
 
-public record TransferBetweenAccountsCommand(Guid FromAccountId, Guid ToAccountId, decimal Amount) : IRequest<TransferResultDto?>;
+public record TransferSender(string AccountNumber, string DocumentNumber);
+
+public record TransferBeneficiary(string AccountNumber, string DocumentType, string DocumentNumber);
+
+public record TransferBetweenAccountsCommand(
+    TransferSender Sender,
+    TransferBeneficiary Beneficiary,
+    decimal Amount,
+    string Currency) : IRequest<TransferResultDto?>;

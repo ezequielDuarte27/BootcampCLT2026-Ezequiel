@@ -1,6 +1,7 @@
 using CleanArchitecture.Full.Domain;
 using CleanArchitecture.Full.Infrastructure.Persistence;
 using CleanArchitecture.Full.Infrastructure.Repositories;
+using CleanArchitecture.Full.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,10 @@ public static class DependencyInjection
             .UseSnakeCaseNamingConvention());
 
         services.AddScoped<IAccountRepository, AccountRepository>();
+        services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<ITransactionRepository, TransactionRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IPasswordHasher, PasswordHasher>();
         return services;
     }
 }

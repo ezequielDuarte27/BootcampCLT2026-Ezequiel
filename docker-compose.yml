@@ -42,6 +42,12 @@ services:
       APPLICATION_NAME: CleanArchitecture.Full.Api
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=accountsdb;Username=postgres;Password=postgres
       Seq__ServerUrl: http://seq:80
+      Jwt__Issuer: CleanArchitecture.Full.Api
+      Jwt__Audience: CleanArchitecture.Full.Clients
+      Jwt__SigningKey: dev-only-signing-key-change-me-in-production-1234567890
+      Jwt__ExpirationMinutes: "60"
+      Auth__AdminUsername: admin
+      Auth__AdminPassword: Admin123!
     ports:
       - "8080:8080"
     depends_on:

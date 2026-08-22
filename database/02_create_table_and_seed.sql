@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     holder_name    VARCHAR(150) NOT NULL,
     balance        NUMERIC(18,2) NOT NULL DEFAULT 0,
     status         VARCHAR(20)  NOT NULL,
-    created_at     TIMESTAMP    NOT NULL DEFAULT NOW(),
+    created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     CONSTRAINT ix_accounts_account_number UNIQUE (account_number)
 );
 

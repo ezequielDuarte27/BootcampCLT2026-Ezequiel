@@ -28,6 +28,9 @@ Base: `api/v1/accounts`
 | `DELETE` | `/api/v1/accounts/{id}` | Elimina una cuenta (404 si no existe) |
 | `POST` | `/api/v1/accounts/{id}/deposit` | Deposita `{ "amount": number }` en la cuenta (400 si el monto es inválido o la cuenta no está `Active`) |
 | `POST` | `/api/v1/accounts/{id}/withdraw` | Retira `{ "amount": number }` de la cuenta (400 si el monto es inválido, si no está `Active` o si no hay saldo suficiente) |
+| `POST` | `/api/v1/accounts/{id}/transfer` | Transfiere `{ "toAccountId": guid, "amount": number }` desde `{id}` hacia `toAccountId` en una única operación atómica (404 si alguna de las dos cuentas no existe; 400 si el monto es inválido, ambas cuentas son la misma, alguna no está `Active`, o no hay saldo suficiente) |
+| `POST` | `/api/v1/accounts/{id}/activate` | Marca la cuenta como `Active` (idempotente, 404 si no existe) |
+| `POST` | `/api/v1/accounts/{id}/deactivate` | Marca la cuenta como `Inactive` (idempotente, 404 si no existe); una cuenta `Inactive` no admite depósitos, retiros ni transferencias |
 
 Documentación interactiva (OpenAPI vía Scalar) disponible en `/scalar` cuando la API corre en `Development`.
 

@@ -1,7 +1,10 @@
 using CleanArchitecture.Full.Application.Accounts;
+using CleanArchitecture.Full.Application.Accounts.Commands.ActivateAccount;
 using CleanArchitecture.Full.Application.Accounts.Commands.CreateAccount;
+using CleanArchitecture.Full.Application.Accounts.Commands.DeactivateAccount;
 using CleanArchitecture.Full.Application.Accounts.Commands.DeleteAccount;
 using CleanArchitecture.Full.Application.Accounts.Commands.DepositToAccount;
+using CleanArchitecture.Full.Application.Accounts.Commands.TransferBetweenAccounts;
 using CleanArchitecture.Full.Application.Accounts.Commands.UpdateAccount;
 using CleanArchitecture.Full.Application.Accounts.Commands.WithdrawFromAccount;
 using CleanArchitecture.Full.Application.Accounts.Queries.GetAllAccounts;
@@ -36,7 +39,7 @@ public static class AccountEndpoints
         group.MapPost("", async (CreateAccountCommand command, ISender sender, CancellationToken cancellationToken) =>
         {
             var account = await sender.Send(command, cancellationToken);
-            return Results.Created($"api/minimal/accounts/{account.Id}", account);
+            return Results.Created($"api/v1/accounts/{account.Id}", account);
         })
             .Produces<AccountDto>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
@@ -79,9 +82,39 @@ public static class AccountEndpoints
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound)
             .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("{id:guid}/transfer", async (Guid id, TransferBody body, ISender sender, CancellationToken cancellationToken) =>
+        {
+            var result = await sender.Send(new TransferBetweenAccountsCommand(id, body.ToAccountId, body.Amount), cancellationToken);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        })
+            .Produces<TransferResultDto>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("{id:guid}/activate", async (Guid id, ISender sender, CancellationToken cancellationToken) =>
+        {
+            var account = await sender.Send(new ActivateAccountCommand(id), cancellationToken);
+            return account is null ? Results.NotFound() : Results.Ok(account);
+        })
+            .Produces<AccountDto>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("{id:guid}/deactivate", async (Guid id, ISender sender, CancellationToken cancellationToken) =>
+        {
+            var account = await sender.Send(new DeactivateAccountCommand(id), cancellationToken);
+            return account is null ? Results.NotFound() : Results.Ok(account);
+        })
+            .Produces<AccountDto>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status500InternalServerError);
     }
 }
 
 public record UpdateAccountBody(string AccountNumber, string HolderName, decimal Balance, string Status);
 
 public record AccountAmountBody(decimal Amount);
+
+public record TransferBody(Guid ToAccountId, decimal Amount);

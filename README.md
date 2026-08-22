@@ -172,14 +172,29 @@ Serilog escribe de forma asíncrona a consola y a Seq (`Seq:ServerUrl`, configur
 
 3. API vía Helm:
 
-   ```bash
-   helm upgrade --install accounts-api ./helm/accounts-api \
-     --namespace accounts --create-namespace \
-     --set image.repository=docker.io/<tu-usuario>/accounts-api \
-     --set image.tag=latest
-   ```
+   - Si la imagen ya está en Docker Hub:
+
+     ```bash
+     helm upgrade --install accounts-api ./helm/accounts-api \
+       --namespace accounts --create-namespace \
+       --set image.repository=docker.io/<tu-usuario>/accounts-api \
+       --set image.tag=latest
+     ```
+
+   - Para probar en local sin publicar la imagen (lo que se usó para verificar este despliegue): construir con `docker compose build accounts-api`, cargarla al cluster con `minikube image load bootcampclt2026-main-accounts-api:latest` y desplegar apuntando a esa imagen con `pullPolicy=Never`:
+
+     ```bash
+     helm upgrade --install accounts-api ./helm/accounts-api \
+       --namespace accounts --create-namespace \
+       --set image.repository=docker.io/library/bootcampclt2026-main-accounts-api \
+       --set image.tag=latest \
+       --set image.pullPolicy=Never \
+       --wait --timeout 3m
+     ```
 
 El chart (`helm/accounts-api`) separa configuración no sensible (`ConfigMap`: `APPLICATION_NAME`, `ASPNETCORE_ENVIRONMENT`, `Seq__ServerUrl`, `Jwt__Issuer`, `Jwt__Audience`, `Jwt__ExpirationMinutes`) de datos sensibles (`Secret`: cadena de conexión a PostgreSQL, `Jwt__SigningKey`, credenciales de admin), incluye un init-container que espera a que PostgreSQL esté listo, y expone la API como `NodePort` en el puerto `30080`.
+
+**Verificado en Minikube real** (driver Docker, Windows): namespace + Postgres + Seq + API con 0 reinicios, health checks, login, listado de cuentas y depósito respondiendo 200 contra la base sembrada dentro del clúster. En Windows con el driver Docker, `minikube ip`/el NodePort no son alcanzables directamente desde el host — para probar hay que usar `kubectl port-forward service/accounts-api 18080:8080 --namespace accounts` (o `minikube service accounts-api -n accounts`) y pegarle a `http://localhost:18080`.
 
 ## CI/CD
 

@@ -4,7 +4,7 @@ namespace CleanArchitecture.Full.Application.Accounts.Commands.TransferBetweenAc
 
 public class TransferBetweenAccountsCommandValidator : AbstractValidator<TransferBetweenAccountsCommand>
 {
-    private static readonly string[] AllowedCurrencies = ["ARS", "USD", "EUR"];
+    private static readonly string[] AllowedCurrencies = ["PYG", "ARS", "USD", "EUR"];
 
     public TransferBetweenAccountsCommandValidator()
     {

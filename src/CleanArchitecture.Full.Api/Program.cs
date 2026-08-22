@@ -1,6 +1,7 @@
 using System.Text;
 using CleanArchitecture.Full.Api.Endpoints;
 using CleanArchitecture.Full.Api.Middleware;
+using CleanArchitecture.Full.Api.OpenApi;
 using CleanArchitecture.Full.Api.Security;
 using CleanArchitecture.Full.Application;
 using CleanArchitecture.Full.Application.Common;
@@ -41,7 +42,12 @@ try
     });
 
     builder.Services.AddControllers();
-    builder.Services.AddOpenApi();
+    builder.Services.AddOpenApi(options =>
+    {
+        var bearerTransformer = new BearerSecuritySchemeTransformer();
+        options.AddDocumentTransformer(bearerTransformer);
+        options.AddOperationTransformer(bearerTransformer);
+    });
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
     builder.Services.AddHealthChecks()
@@ -116,6 +122,12 @@ try
         app.MapScalarApiReference(options =>
         {
             options.Title = "CleanArchitecture.Full API";
+            options.AddHttpAuthentication("Bearer", scheme =>
+            {
+                scheme.Token = "Pegue aquí el token de POST /api/v1/auth/login (sin la palabra Bearer)";
+            });
+            options.AddPreferredSecuritySchemes("Bearer");
+            options.EnablePersistentAuthentication();
         });
     }
 

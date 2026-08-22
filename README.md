@@ -18,7 +18,7 @@ Flujo de una request: `Endpoint (Minimal API)` → `ISender.Send(Command/Query)`
 ## Modelo de datos
 
 - **`customers`**: cliente del banco (`document_type` + `document_number` únicos, `full_name`).
-- **`accounts`**: pertenece a un `customer_id`; `account_number` se **genera automáticamente** al crear la cuenta (no lo elige el cliente); `currency` (`ARS`/`USD`/`EUR`); `status` (`Active` / `Inactive` / `Closed`, con `closed_at` cuando se cierra).
+- **`accounts`**: pertenece a un `customer_id`; `account_number` se **genera automáticamente** al crear la cuenta (no lo elige el cliente); `currency` (`PYG` por defecto; también admite `ARS`/`USD`/`EUR`); `status` (`Active` / `Inactive` / `Closed`, con `closed_at` cuando se cierra).
 - **`transactions`**: historial inmutable de movimientos por cuenta (`Deposit`, `Withdrawal`, `TransferOut`, `TransferIn`), con `balance_after` y, en transferencias, `related_account_id`.
 - **`users`**: login de la API, con rol `Admin` o `Cliente`; un usuario `Cliente` está vinculado a un `customer_id` y solo puede operar sus propias cuentas.
 
@@ -75,11 +75,11 @@ Formato del body — el ordenante se identifica con **número de cuenta + docume
   "sender": { "accountNumber": "ACC-000001", "documentNumber": "27134863" },
   "beneficiary": { "accountNumber": "ACC-000002", "documentType": "DNI", "documentNumber": "40123456" },
   "amount": 1000,
-  "currency": "ARS"
+  "currency": "PYG"
 }
 ```
 
-Documentación interactiva (OpenAPI vía Scalar) disponible en `/scalar` cuando la API corre en `Development`.
+Documentación interactiva (OpenAPI vía Scalar) disponible en `/scalar` cuando la API corre en `Development`. El documento OpenAPI declara el esquema `Bearer` y lo exige automáticamente en cada operación protegida (no en `login`/`register`/health checks); en Scalar, abrí el panel **Authentication** (arriba a la derecha), pegá el token obtenido en `/api/v1/auth/login` una sola vez (sin la palabra `Bearer`) y Scalar lo va a mandar solo en cada "Try it" mientras dure la sesión (persiste en el navegador).
 
 Health checks (públicos, sin token):
 - `GET /health/live` — liveness del proceso.
@@ -110,13 +110,27 @@ docker compose up --build
 - Seq (UI de logs): `http://localhost:5341` (login `admin` / `123456`)
 - PostgreSQL: `localhost:5432` (db `accountsdb`, user/pass `postgres`/`postgres`)
 
-La primera vez, aplicar el esquema y datos semilla contra la base (crea 3 clientes/cuentas de ejemplo: Messi `ACC-000001`, Alvarez `ACC-000002`, Caballero `ACC-000003`, documentos DNI ficticios):
+La primera vez, aplicar el esquema y datos semilla contra la base:
 
 ```bash
 docker exec -i accounts-postgres psql -U postgres -d accountsdb < database/02_create_table_and_seed.sql
 ```
 
-Luego, para probar la API, primero pedí un token:
+Esto crea, con montos en **guaraníes (PYG)**:
+
+| Cliente | Documento | Cuenta | Balance | Estado |
+|---|---|---|---|---|
+| Lionel Messi | DNI 27134863 | `ACC-000001` | 120.000.000 | Active (con 3 movimientos de historial) |
+| Julian Alvarez | DNI 40123456 | `ACC-000002` | 65.000.000 | Active (con 2 movimientos de historial) |
+| Sebas Caballero | DNI 35987654 | `ACC-000003` | 0 | Inactive |
+| Miguel Almiron | DNI 41234567 | `ACC-000004` | 45.000.000 | Active |
+| Gustavo Gomez | DNI 34567890 | `ACC-000005` | 30.750.000 | Active |
+| Angel Romero | DNI 23456789 | `ACC-000006` | 18.200.000 | Active |
+| Roberto Fernandez | DNI 56789012 | `ACC-000007` | 0 | **Closed** (para probar el bloqueo de reactivación/operaciones) |
+
+Además crea un usuario `Cliente` ya registrado (vinculado a Miguel Almiron) para probar el rol sin pasar por `/register`: usuario **`malmiron`**, contraseña **`Cliente123!`**.
+
+Para probar la API, primero pedí un token (admin o el cliente de arriba):
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/auth/login \
@@ -124,7 +138,7 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
   -d '{"username":"admin","password":"Admin123!"}'
 ```
 
-y usalo en el resto de las llamadas con `-H "Authorization: Bearer <token>"`.
+y usalo en el resto de las llamadas con `-H "Authorization: Bearer <token>"` (o pegalo una vez en el panel de autenticación de Scalar, ver más abajo).
 
 ### Sin Docker
 

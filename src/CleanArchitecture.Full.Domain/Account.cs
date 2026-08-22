@@ -7,7 +7,7 @@ public class Account
     public Guid CustomerId { get; set; }
     public Customer? Customer { get; set; }
     public decimal Balance { get; set; }
-    public string Currency { get; set; } = "ARS";
+    public string Currency { get; set; } = "PYG";
     public string Status { get; set; } = "Active";
     public DateTime CreatedAt { get; set; }
     public DateTime? ClosedAt { get; set; }

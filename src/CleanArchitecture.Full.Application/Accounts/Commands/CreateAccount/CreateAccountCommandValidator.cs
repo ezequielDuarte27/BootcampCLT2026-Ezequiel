@@ -4,7 +4,7 @@ namespace CleanArchitecture.Full.Application.Accounts.Commands.CreateAccount;
 
 public class CreateAccountCommandValidator : AbstractValidator<CreateAccountCommand>
 {
-    private static readonly string[] AllowedCurrencies = ["ARS", "USD", "EUR"];
+    private static readonly string[] AllowedCurrencies = ["PYG", "ARS", "USD", "EUR"];
 
     public CreateAccountCommandValidator()
     {

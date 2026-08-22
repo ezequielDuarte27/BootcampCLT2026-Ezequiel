@@ -33,7 +33,7 @@ Content-Type: application/json
 {
   "customerId": "00000000-0000-0000-0000-000000000000",
   "balance": 5000,
-  "currency": "ARS"
+  "currency": "PYG"
 }
 
 ###
@@ -98,7 +98,7 @@ Content-Type: application/json
   "sender": { "accountNumber": "ACC-000001", "documentNumber": "27134863" },
   "beneficiary": { "accountNumber": "ACC-000002", "documentType": "DNI", "documentNumber": "40123456" },
   "amount": 100,
-  "currency": "ARS"
+  "currency": "PYG"
 }
 
 ###

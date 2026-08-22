@@ -122,10 +122,7 @@ try
         app.MapScalarApiReference(options =>
         {
             options.Title = "CleanArchitecture.Full API";
-            options.AddHttpAuthentication("Bearer", scheme =>
-            {
-                scheme.Token = "Pegue aquí el token de POST /api/v1/auth/login (sin la palabra Bearer)";
-            });
+            options.AddHttpAuthentication("Bearer", scheme => scheme.Token = string.Empty);
             options.AddPreferredSecuritySchemes("Bearer");
             options.EnablePersistentAuthentication();
         });

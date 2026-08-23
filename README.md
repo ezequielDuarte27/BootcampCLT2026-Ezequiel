@@ -307,7 +307,19 @@ Definido en `.github/workflows/ci.yml`, con tres triggers (`push` a `main`, `pul
 
 ### Evidencia: check en rojo → arreglo → check en verde (Pull Request)
 
-<!-- TODO: completar con el link al PR y el resultado una vez ejecutado el flujo -->
+PR: [#1 — Rompe a propósito un test para demostrar el check en rojo del PR](https://github.com/ezequielDuarte27/BootcampCLT2026-Ezequiel/pull/1) (rama `demo/pr-check-fail-then-fix` → `main`).
+
+1. **Se rompió a propósito** la aserción de `WithdrawFromAccountCommandHandlerTests.Should_reduce_balance_and_record_transaction_on_successful_withdrawal` (esperaba `999` en vez del balance real `700`) y se abrió el PR.
+2. **Check en rojo** — el trigger `pull_request` disparó el workflow; el job `validate` falló en el paso `Test`, y por `needs`, `build-and-push`/`cd` no llegaron a correr:
+
+   [Run #32615442336 (commit `5c0c530`) — `Restore, build and test`: ❌ failure](https://github.com/ezequielDuarte27/BootcampCLT2026-Ezequiel/actions/runs/32615442336)
+
+3. **Se corrigió** la aserción de vuelta a `700` y se pusheó a la misma rama del PR.
+4. **Check en verde** — nueva corrida automática sobre el mismo PR:
+
+   [Run #32615542132 (commit `2f37e8e`) — `Restore, build and test`: ✅ success](https://github.com/ezequielDuarte27/BootcampCLT2026-Ezequiel/actions/runs/32615542132)
+
+   De paso, esta corrida confirma que `build-and-push` y `cd` se **saltean correctamente** en un PR (`skipped`, ya que su condición es `github.ref == 'refs/heads/main'`) — el empaquetado/deploy queda limitado a la rama principal como pide la consigna.
 
 ## Variables de entorno relevantes
 

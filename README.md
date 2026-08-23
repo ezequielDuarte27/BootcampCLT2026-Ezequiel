@@ -107,7 +107,7 @@ docker compose up --build
 ```
 
 - API: `http://localhost:8080`
-- Seq (UI de logs): `http://localhost:5341` (login `admin` / `123456`)
+- Seq (UI de logs): `http://localhost:5341` (login `admin` / `12345678` — Seq exige contraseñas de al menos 8 caracteres)
 - PostgreSQL: `localhost:5432` (db `accountsdb`, user/pass `postgres`/`postgres`)
 
 La primera vez, aplicar el esquema y datos semilla contra la base:

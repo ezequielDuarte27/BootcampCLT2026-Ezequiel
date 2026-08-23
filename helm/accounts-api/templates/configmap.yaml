@@ -8,6 +8,8 @@ metadata:
 data:
   APPLICATION_NAME: {{ .Values.appName | quote }}
   ASPNETCORE_ENVIRONMENT: {{ .Values.aspnetEnvironment | quote }}
+  Serilog__MinimumLevel__Default: {{ .Values.logLevel | quote }}
+  Serilog__MinimumLevel__Override__CleanArchitecture.Full: {{ .Values.logLevel | quote }}
   Seq__ServerUrl: {{ .Values.seq.url | quote }}
   Jwt__Issuer: {{ .Values.jwt.issuer | quote }}
   Jwt__Audience: {{ .Values.jwt.audience | quote }}

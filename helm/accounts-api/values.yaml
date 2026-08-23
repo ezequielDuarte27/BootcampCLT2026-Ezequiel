@@ -1,4 +1,4 @@
-replicaCount: 1
+replicaCount: 2
 
 nameOverride: ""
 fullnameOverride: ""
@@ -13,6 +13,7 @@ containerPort: 8080
 # Datos no sensibles -> ConfigMap
 appName: CleanArchitecture.Full.Api
 aspnetEnvironment: Development
+logLevel: Information
 
 seq:
   url: http://seq:5341
@@ -57,11 +58,11 @@ probes:
     initialDelaySeconds: 20
     periodSeconds: 15
 
-resources: {}
-  # limits:
-  #   cpu: 250m
-  #   memory: 256Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
 

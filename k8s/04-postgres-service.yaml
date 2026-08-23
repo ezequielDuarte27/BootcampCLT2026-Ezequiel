@@ -4,6 +4,8 @@ metadata:
   name: postgres
   namespace: accounts
 spec:
+  # Headless: da identidad de red estable al Pod del StatefulSet (postgres-0.postgres.accounts.svc).
+  clusterIP: None
   selector:
     app: postgres
   ports:

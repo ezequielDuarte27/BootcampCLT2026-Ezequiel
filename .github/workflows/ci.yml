@@ -3,6 +3,8 @@ name: CI-CD CleanArchitecture.Full
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -13,20 +15,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ci:
-    name: Build, test and publish
+  validate:
+    name: Restore, build and test
     runs-on: ubuntu-latest
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tag }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set image tag
-        id: meta
-        shell: bash
-        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -49,11 +44,30 @@ jobs:
         run: |
           helm lint helm/accounts-api
           helm template accounts-api helm/accounts-api > /dev/null
+          helm template accounts-api helm/accounts-api -f helm/accounts-api/values-dev.yaml > /dev/null
+          helm template accounts-api helm/accounts-api -f helm/accounts-api/values-qa.yaml > /dev/null
+
+  build-and-push:
+    name: Build and publish Docker image
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: meta
+        shell: bash
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Setup Docker Buildx
@@ -65,14 +79,14 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/accounts-api:${{ steps.meta.outputs.tag }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/accounts-api:latest
+            ${{ vars.DOCKERHUB_USERNAME }}/accounts-api:${{ steps.meta.outputs.tag }}
+            ${{ vars.DOCKERHUB_USERNAME }}/accounts-api:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   cd:
     name: Deploy to local Minikube
-    needs: ci
+    needs: build-and-push
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 10
 
@@ -95,14 +109,14 @@ jobs:
         run: |
           kubectl apply -f k8s/00-namespace.yaml
           kubectl apply -f k8s
-          kubectl rollout status deployment/postgres --namespace accounts --timeout=120s
+          kubectl rollout status statefulset/postgres --namespace accounts --timeout=120s
           kubectl rollout status deployment/seq --namespace accounts --timeout=120s
 
       - name: Apply database schema and seed
         shell: powershell
         run: |
           Get-Content database/02_create_table_and_seed.sql -Raw |
-            kubectl exec --stdin deployment/postgres --namespace accounts -- `
+            kubectl exec --stdin postgres-0 --namespace accounts -- `
               psql -v ON_ERROR_STOP=1 -U postgres -d accountsdb
 
       - name: Deploy API with Helm
@@ -111,11 +125,9 @@ jobs:
           helm upgrade --install accounts-api ./helm/accounts-api `
             --namespace accounts `
             --create-namespace `
-            --set image.repository=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/accounts-api `
-            --set image.tag=${{ needs.ci.outputs.image_tag }} `
+            --set image.repository=docker.io/${{ vars.DOCKERHUB_USERNAME }}/accounts-api `
+            --set image.tag=${{ needs.build-and-push.outputs.image_tag }} `
             --set image.pullPolicy=Always `
-            --set probes.readiness.path=/health/ready `
-            --set probes.liveness.path=/health/live `
             --wait `
             --timeout 3m
 

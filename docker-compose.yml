@@ -40,6 +40,8 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: 8080
       APPLICATION_NAME: CleanArchitecture.Full.Api
+      Serilog__MinimumLevel__Default: Debug
+      Serilog__MinimumLevel__Override__CleanArchitecture.Full: Debug
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=accountsdb;Username=postgres;Password=postgres
       Seq__ServerUrl: http://seq:80
       Jwt__Issuer: CleanArchitecture.Full.Api

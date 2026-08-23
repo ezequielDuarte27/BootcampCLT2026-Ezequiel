@@ -2,11 +2,12 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using CleanArchitecture.Full.Domain;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 
 namespace CleanArchitecture.Full.Api.Security;
 
-public class JwtTokenGenerator(IConfiguration configuration) : IJwtTokenGenerator
+public class JwtTokenGenerator(IConfiguration configuration, ILogger<JwtTokenGenerator> logger) : IJwtTokenGenerator
 {
     public GeneratedToken GenerateToken(Guid userId, string username, string role, Guid? customerId)
     {
@@ -38,6 +39,16 @@ public class JwtTokenGenerator(IConfiguration configuration) : IJwtTokenGenerato
             expires: expiresAt,
             signingCredentials: credentials);
 
-        return new GeneratedToken(new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
+        var writtenToken = new JwtSecurityTokenHandler().WriteToken(token);
+
+        // Nivel Debug: detalle de emision de tokens, util para diagnostico pero demasiado
+        // ruidoso para Information (no expone el token en si, solo metadata).
+        logger.LogDebug(
+            "Token JWT generado para {Username} (rol {Role}), expira {ExpiresAt}",
+            username,
+            role,
+            expiresAt);
+
+        return new GeneratedToken(writtenToken, expiresAt);
     }
 }

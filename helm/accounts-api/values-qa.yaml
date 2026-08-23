@@ -1,0 +1,15 @@
+# Overrides para el entorno qa.
+# Uso: helm upgrade --install accounts-api ./helm/accounts-api -f helm/accounts-api/values-qa.yaml
+
+replicaCount: 2
+
+aspnetEnvironment: Staging
+logLevel: Information
+
+resources:
+  requests:
+    cpu: 150m
+    memory: 192Mi
+  limits:
+    cpu: 400m
+    memory: 384Mi

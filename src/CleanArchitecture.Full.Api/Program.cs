@@ -89,12 +89,13 @@ try
 
     app.UseSerilogRequestLogging(options =>
     {
-        // Las probes son frecuentes: se conservan a nivel Debug sin bombardear a Seq.
+        // Incluye /health/live y /health/ready a nivel Information (o Error si el chequeo falla)
+        // para poder ver en Seq que el liveness/readiness quedaron bien configurados desde el arranque.
         options.GetLevel = (httpContext, _, exception) =>
-            httpContext.Request.Path.StartsWithSegments("/health")
-                ? LogEventLevel.Debug
-                : exception is not null || httpContext.Response.StatusCode >= 500
-                    ? LogEventLevel.Error
+            exception is not null || httpContext.Response.StatusCode >= 500
+                ? LogEventLevel.Error
+                : httpContext.Response.StatusCode >= 400
+                    ? LogEventLevel.Warning
                     : LogEventLevel.Information;
 
         options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
@@ -145,6 +146,13 @@ try
     {
         Predicate = healthCheck => healthCheck.Tags.Contains("ready")
     });
+
+    app.Lifetime.ApplicationStarted.Register(() =>
+        Log.Information(
+            "Health checks configurados: {LivenessPath} = liveness (siempre healthy si el proceso responde, sin dependencias) · {ReadinessPath} = readiness (depende de: {ReadinessChecks})",
+            "/health/live",
+            "/health/ready",
+            "postgresql"));
 
     app.Run();
 }

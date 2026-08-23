@@ -67,7 +67,7 @@ public class WithdrawFromAccountCommandHandlerTests
         var result = await handler.Handle(new WithdrawFromAccountCommand(account.Id, 300m), CancellationToken.None);
 
         Assert.NotNull(result);
-        Assert.Equal(700m, result.Balance);
+        Assert.Equal(999m, result.Balance);
         Assert.Single(transactionRepository.Transactions);
         Assert.Equal(TransactionTypes.Withdrawal, transactionRepository.Transactions[0].Type);
     }

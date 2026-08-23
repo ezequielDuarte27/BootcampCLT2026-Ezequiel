@@ -150,33 +150,86 @@ dotnet run --project src/CleanArchitecture.Full.Api
 
 Requiere una instancia de PostgreSQL accesible según `ConnectionStrings:DefaultConnection` en `src/CleanArchitecture.Full.Api/appsettings.Development.json`, y opcionalmente Seq en `http://localhost:5341` para centralizar logs.
 
+## Testing
+
+Proyecto `tests/CleanArchitecture.Full.Application.Tests` (xUnit), sin dependencias de infraestructura (repositorios en memoria, sin base de datos real):
+
+```bash
+dotnet test CleanArchitecture.Full.slnx
+```
+
+9 tests: validaciones de `CreateAccountCommandValidator` (monedas permitidas, balance negativo, `customerId` vacío) y la lógica real de `WithdrawFromAccountCommandHandler` (rechaza el retiro si no hay saldo suficiente; en un retiro exitoso descuenta el balance y registra el movimiento en `transactions`).
+
 ## Logging
 
-Serilog escribe de forma asíncrona a consola y a Seq (`Seq:ServerUrl`, configurable por entorno). Se usa `Information` para operaciones normales, `Warning` para reglas de negocio "blandas", errores de cliente (validación, 4xx) e intentos de login fallidos, y `Error` para excepciones no controladas (5xx). Cada request queda enriquecida con `RequestId`, `ClientIp`, `RequestHost` y `UserAgent`.
+Serilog reemplaza al logger por defecto de ASP.NET Core desde el arranque del `Program.cs` (antes de `WebApplication.CreateBuilder`), con dos sinks async: **consola** y **HTTP hacia Seq** (`Seq:ServerUrl`, configurable por entorno/ConfigMap). Todos los logs son estructurados (propiedades clave-valor, nunca texto interpolado a mano) y cada request HTTP queda enriquecida con `RequestId`, `ClientIp`, `RequestHost`, `UserAgent` y `MachineName` (= nombre del Pod en Kubernetes, clave para correlacionar entre réplicas — ver más abajo).
+
+Los 4 niveles de severidad se usan con criterio:
+
+| Nivel | Cuándo |
+|---|---|
+| `Debug` | Detalle interno de diagnóstico (ej. emisión de cada token JWT: usuario, rol, expiración — sin exponer el token). Configurable por entorno vía `Serilog__MinimumLevel__Override__CleanArchitecture.Full` (`Debug` en `values-dev.yaml`, `Information` en `values.yaml`/`values-qa.yaml`). |
+| `Information` | Operaciones normales: requests HTTP completados, login exitoso, depósito/retiro/transferencia realizados. |
+| `Warning` | Reglas de negocio "blandas", errores de cliente (4xx: validación, conflicto, prohibido) e intentos de login fallidos. |
+| `Error` | Excepciones no controladas (5xx). |
+
+### Evidencia: Seq corriendo en Kubernetes, correlacionando eventos de más de una réplica
+
+Con la API desplegada en Minikube con **2 réplicas** (ver sección siguiente), se mandó un login como admin apuntando explícitamente a cada Pod por separado (`kubectl port-forward pod/<pod> ...`, ya que `port-forward` a un Service no balancea) y después se corrió **la misma búsqueda** en Seq (`@Message like 'Login de administrador%'`) vía su API (`GET /api/events?filter=...`), autenticado como el usuario de Seq. El resultado trae dos eventos con `MachineName` distinto — uno por cada Pod — probando que Seq centraliza y correlaciona logs de ambas réplicas bajo una misma consulta:
+
+```json
+[
+  {
+    "Timestamp": "2026-08-23T03:06:25.7848100Z",
+    "Properties": [
+      { "Name": "MachineName", "Value": "accounts-api-648dcfd945-k5t2q" },
+      { "Name": "RequestId", "Value": "0HNO0OD0B1J6P:00000001" },
+      { "Name": "RequestPath", "Value": "/api/v1/auth/login" },
+      { "Name": "Username", "Value": "admin" }
+    ],
+    "Level": "Information"
+  },
+  {
+    "Timestamp": "2026-08-23T03:06:24.6334069Z",
+    "Properties": [
+      { "Name": "MachineName", "Value": "accounts-api-648dcfd945-c5dvp" },
+      { "Name": "RequestId", "Value": "0HNO0OD7ITOK0:00000001" },
+      { "Name": "RequestPath", "Value": "/api/v1/auth/login" },
+      { "Name": "Username", "Value": "admin" }
+    ],
+    "Level": "Information"
+  }
+]
+```
+
+Mismo mensaje, mismo filtro, dos `MachineName`/`RequestId` distintos → la búsqueda correlaciona ambas réplicas.
 
 ## Despliegue a Kubernetes (Minikube)
 
-1. Namespace + PostgreSQL + Seq (manifiestos crudos):
+Postgres se despliega como **`StatefulSet`** (con `volumeClaimTemplates`, no una PVC suelta) para tener almacenamiento estable por Pod; su Service es *headless* (`clusterIP: None`). La API es un `Deployment` con **2 réplicas** por defecto, `resources` (requests/limits) y `readinessProbe`/`livenessProbe`; se expone con un Service `NodePort`. Seq corre como `Deployment` con su propio `Service` y volumen.
+
+1. Namespace + PostgreSQL (StatefulSet) + Seq:
 
    ```bash
    kubectl apply -f k8s/00-namespace.yaml
    kubectl apply -f k8s
    ```
 
-2. Esquema y datos semilla:
+2. Esquema y datos semilla (el Pod de un StatefulSet con 1 réplica se llama `<statefulset>-0`):
 
    ```bash
-   kubectl exec --stdin deployment/postgres --namespace accounts -- \
+   kubectl exec --stdin postgres-0 --namespace accounts -- \
      psql -v ON_ERROR_STOP=1 -U postgres -d accountsdb < database/02_create_table_and_seed.sql
    ```
 
-3. API vía Helm:
+3. API vía Helm — el chart trae `values.yaml` (base) y overrides por entorno en `values-dev.yaml`/`values-qa.yaml`:
 
-   - Si la imagen ya está en Docker Hub:
+   - Si la imagen ya está en Docker Hub (agregando `-f helm/accounts-api/values-dev.yaml` o `-f helm/accounts-api/values-qa.yaml` para desplegar con los overrides de ese entorno):
 
      ```bash
      helm upgrade --install accounts-api ./helm/accounts-api \
        --namespace accounts --create-namespace \
+       -f helm/accounts-api/values-qa.yaml \
        --set image.repository=docker.io/<tu-usuario>/accounts-api \
        --set image.tag=latest
      ```
@@ -192,16 +245,69 @@ Serilog escribe de forma asíncrona a consola y a Seq (`Seq:ServerUrl`, configur
        --wait --timeout 3m
      ```
 
-El chart (`helm/accounts-api`) separa configuración no sensible (`ConfigMap`: `APPLICATION_NAME`, `ASPNETCORE_ENVIRONMENT`, `Seq__ServerUrl`, `Jwt__Issuer`, `Jwt__Audience`, `Jwt__ExpirationMinutes`) de datos sensibles (`Secret`: cadena de conexión a PostgreSQL, `Jwt__SigningKey`, credenciales de admin), incluye un init-container que espera a que PostgreSQL esté listo, y expone la API como `NodePort` en el puerto `30080`.
+El chart (`helm/accounts-api`) separa configuración no sensible (`ConfigMap`: `APPLICATION_NAME`, `ASPNETCORE_ENVIRONMENT`, nivel de log, `Seq__ServerUrl`, `Jwt__Issuer`, `Jwt__Audience`, `Jwt__ExpirationMinutes`) de datos sensibles (`Secret`: cadena de conexión a PostgreSQL, `Jwt__SigningKey`, credenciales de admin), incluye un init-container que espera a que PostgreSQL esté listo, y expone la API como `NodePort` en el puerto `30080`.
 
-**Verificado en Minikube real** (driver Docker, Windows): namespace + Postgres + Seq + API con 0 reinicios, health checks, login, listado de cuentas y depósito respondiendo 200 contra la base sembrada dentro del clúster. En Windows con el driver Docker, `minikube ip`/el NodePort no son alcanzables directamente desde el host — para probar hay que usar `kubectl port-forward service/accounts-api 18080:8080 --namespace accounts` (o `minikube service accounts-api -n accounts`) y pegarle a `http://localhost:18080`.
+**Verificado en Minikube real** (driver Docker, Windows): namespace + Postgres (StatefulSet) + Seq + API (2 réplicas) con health checks, login, listado de cuentas y depósito respondiendo 200 contra la base sembrada dentro del clúster. En Windows con el driver Docker, `minikube ip`/el NodePort no son alcanzables directamente desde el host, y `kubectl port-forward` a un **Service** solo enruta a un único Pod (no balancea) — para pegarle a un Pod puntual usar `kubectl port-forward pod/<nombre-del-pod> 18080:8080 --namespace accounts`.
+
+### Evidencia: autorecuperación (borrar un Pod)
+
+```text
+$ kubectl get pods --namespace accounts -l app.kubernetes.io/name=accounts-api
+NAME                            READY   STATUS    RESTARTS   AGE
+accounts-api-648dcfd945-c5dvp   1/1     Running   0          4m21s
+accounts-api-648dcfd945-k5t2q   1/1     Running   0          4m46s
+
+$ kubectl delete pod accounts-api-648dcfd945-c5dvp --namespace accounts
+pod "accounts-api-648dcfd945-c5dvp" deleted from accounts namespace
+
+$ kubectl get pods --namespace accounts -l app.kubernetes.io/name=accounts-api
+NAME                            READY   STATUS     RESTARTS   AGE
+accounts-api-648dcfd945-g65sv   0/1     Init:0/1   0          2s     # <- recreado por el ReplicaSet, al toque
+accounts-api-648dcfd945-k5t2q   1/1     Running    0          4m48s
+
+# 35s despues:
+NAME                            READY   STATUS    RESTARTS   AGE
+accounts-api-648dcfd945-g65sv   1/1     Running   0          42s
+accounts-api-648dcfd945-k5t2q   1/1     Running   0          5m28s
+```
+
+El Deployment siempre mantiene el `replicaCount` declarado: el ReplicaSet detecta el Pod faltante y crea uno nuevo sin intervención manual.
+
+### Evidencia: escalado declarativo
+
+```text
+$ kubectl scale deployment accounts-api --namespace accounts --replicas=4
+deployment.apps/accounts-api scaled
+
+$ kubectl get pods --namespace accounts -l app.kubernetes.io/name=accounts-api
+NAME                            READY   STATUS    RESTARTS   AGE
+accounts-api-648dcfd945-8m6b8   0/1     Running   0          20s
+accounts-api-648dcfd945-fxs7l   0/1     Running   0          20s
+accounts-api-648dcfd945-g65sv   1/1     Running   0          71s
+accounts-api-648dcfd945-k5t2q   1/1     Running   0          5m57s
+
+$ kubectl scale deployment accounts-api --namespace accounts --replicas=2
+deployment.apps/accounts-api scaled
+
+$ kubectl get pods --namespace accounts -l app.kubernetes.io/name=accounts-api
+NAME                            READY   STATUS    RESTARTS   AGE
+accounts-api-648dcfd945-g65sv   1/1     Running   0          86s
+accounts-api-648dcfd945-k5t2q   1/1     Running   0          6m12s
+```
 
 ## CI/CD
 
-Definido en `.github/workflows/ci.yml`:
+Definido en `.github/workflows/ci.yml`, con tres triggers (`push` a `main`, `pull_request` contra `main`, y `workflow_dispatch` manual) y tres jobs encadenados:
 
-- **CI** (`ubuntu-latest`): restore, build, test de la solución, lint del chart de Helm, build y push de la imagen a Docker Hub (tag = SHA corto + `latest`).
-- **CD** (`self-hosted, Windows`): despliega los manifiestos de PostgreSQL/Seq y la API (vía Helm) a un clúster Minikube local, aplica el esquema/seed de la base, y verifica el rollout.
+1. **`validate`** (`ubuntu-latest`, corre siempre): `checkout` → `restore` → `build --no-restore` → `test --no-build` → lint/template del chart de Helm (incluidos `values-dev.yaml` y `values-qa.yaml`).
+2. **`build-and-push`** (`needs: validate`, solo si `github.ref == 'refs/heads/main'` — o sea, nunca en un PR): build y push de la imagen Docker a Docker Hub (tag = SHA corto + `latest`).
+3. **`cd`** (`needs: build-and-push`, `self-hosted, Windows`): despliega los manifiestos de PostgreSQL/Seq y la API (vía Helm) a un clúster Minikube local, aplica el esquema/seed de la base, y verifica el rollout.
+
+**Variables vs. Secrets**: `DOCKERHUB_USERNAME` es un dato **no sensible** (es público, aparece en la URL de la imagen) y vive en **Settings → Secrets and variables → Actions → Variables** (`vars.DOCKERHUB_USERNAME` en el workflow); `DOCKERHUB_TOKEN` sí es sensible y vive en **Secrets** (`secrets.DOCKERHUB_TOKEN`). Ningún secreto se imprime en los logs (los `docker/login-action`/`build-push-action` oficiales los enmascaran automáticamente).
+
+### Evidencia: check en rojo → arreglo → check en verde (Pull Request)
+
+<!-- TODO: completar con el link al PR y el resultado una vez ejecutado el flujo -->
 
 ## Variables de entorno relevantes
 
